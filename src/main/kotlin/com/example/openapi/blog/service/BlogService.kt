@@ -7,12 +7,9 @@ import com.example.openapi.core.exception.InvalidInputException
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
 import org.springframework.stereotype.Service
-import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.reactive.function.client.WebClient
 import org.springframework.web.reactive.function.client.bodyToMono
 
-
-@Transactional(readOnly = true)
 @Service
 class BlogService(
     val wordRepository: WordRepository
@@ -29,11 +26,9 @@ class BlogService(
             message.append(", sort parameter one of accuracy and recency")
         }
 
-        if (blogDto.page < 1) {
-            message.append(", page is less than min")
-
-        } else if (blogDto.page > 50) {
-            message.append(", page is more than max")
+        when {
+            blogDto.page < 1 -> message.append(", page is less than min")
+            blogDto.page > 50 -> message.append(", page is more than max")
         }
 
         if (message.isNotEmpty()) {
@@ -49,7 +44,12 @@ class BlogService(
 
         val response = webClient
             .get()
-            .uri("/v2/search/blog", mapOf("query" to blogDto.query, "sort" to blogDto.sort, "page" to blogDto.page, "size" to blogDto.size))
+            .uri { it.path("/v2/search/blog")
+                    .queryParam("query", blogDto.query)
+                    .queryParam("sort", blogDto.sort)
+                    .queryParam("page", blogDto.page)
+                    .queryParam("size", blogDto.size)
+                    .build() }
             .header("Authorization", "KakaoAK ac5d9a371616d5c1a4c00e6e81230a6e")
             .retrieve()
             .bodyToMono<String>()
