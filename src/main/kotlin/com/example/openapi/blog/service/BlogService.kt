@@ -4,6 +4,7 @@ import com.example.openapi.blog.dto.BlogDto
 import com.example.openapi.blog.entity.Word
 import com.example.openapi.blog.repository.WordRepository
 import com.example.openapi.core.exception.InvalidInputException
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
 import org.springframework.stereotype.Service
@@ -14,27 +15,31 @@ import org.springframework.web.reactive.function.client.bodyToMono
 class BlogService(
     val wordRepository: WordRepository
 ) {
-    fun selectKakao(blogDto: BlogDto): String? {
+    @Value("\${REST_API_KEY}")
+    lateinit var restApiKey: String
 
-        var message: StringBuilder = StringBuilder()
+    fun searchKakao(blogDto: BlogDto): String? {
+
+        val msgList = mutableListOf<ExceptionMsg>()
 
         if (blogDto.query.trim().isEmpty()) {
-            message.append(", query parameter required")
+            msgList.add(ExceptionMsg.EMPTY_QUERY)
         }
 
         if (blogDto.sort.trim() !in arrayOf("accuracy","recency")) {
-            message.append(", sort parameter one of accuracy and recency")
+            msgList.add(ExceptionMsg.NOT_IN_SORT)
         }
 
         when {
-            blogDto.page < 1 -> message.append(", page is less than min")
-            blogDto.page > 50 -> message.append(", page is more than max")
+            blogDto.page < 1 -> msgList.add(ExceptionMsg.LESS_THAN_MIN)
+            blogDto.page > 50 -> msgList.add(ExceptionMsg.MORE_THAN_MAX)
         }
 
-        if (message.isNotEmpty()) {
-            val exceptionMessage = message.delete(0, 2).toString()
-            throw InvalidInputException(exceptionMessage)
+        if (msgList.isNotEmpty()) {
+            val message = msgList.joinToString { it.msg }
+            throw InvalidInputException(message)
         }
+
 
         val webClient: WebClient = WebClient
             .builder()
@@ -50,7 +55,7 @@ class BlogService(
                     .queryParam("page", blogDto.page)
                     .queryParam("size", blogDto.size)
                     .build() }
-            .header("Authorization", "KakaoAK ac5d9a371616d5c1a4c00e6e81230a6e")
+            .header("Authorization", "KakaoAK $restApiKey")
             .retrieve()
             .bodyToMono<String>()
 
@@ -65,5 +70,12 @@ class BlogService(
         return result
     }
 
-    fun selectWordRank(): List<Word> = wordRepository.findTop10ByOrderByCntDesc()
+    fun searchWordRank(): List<Word> = wordRepository.findTop10ByOrderByCntDesc()
+}
+
+private enum class ExceptionMsg(val msg: String) {
+    EMPTY_QUERY("query parameter required"),
+    NOT_IN_SORT("sort parameter one of accuracy and recency"),
+    LESS_THAN_MIN("page is less than min"),
+    MORE_THAN_MAX("page is more than max")
 }

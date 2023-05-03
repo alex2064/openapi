@@ -16,10 +16,10 @@ class BlogController(
 
     @GetMapping("")
     fun search(@RequestBody blogDto: BlogDto): String? {
-        val result: String? = blogService.selectKakao(blogDto)
+        val result: String? = blogService.searchKakao(blogDto)
         return result
     }
 
     @GetMapping("/rank")
-    fun searchWordRank(): List<Word> = blogService.selectWordRank()
+    fun searchWordRank(): List<Word> = blogService.searchWordRank()
 }
